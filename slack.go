@@ -13,7 +13,6 @@ func notifySlack(name string, namespace string, environment string, tag string, 
 	attachment := slack.Attachment{
 		Pretext:  "New deployment",
 		Fallback: fallback,
-		IconEmoji: Sprintf(":%s:", slackmoji),
 		Fields: []slack.AttachmentField{
 			slack.AttachmentField{
 				Title: "App",
@@ -47,6 +46,7 @@ func notifySlack(name string, namespace string, environment string, tag string, 
 		os.Getenv("SLACK_CHANNEL"),
 		slack.MsgOptionAttachments(attachment),
 		slack.MsgOptionAsUser(true), // Add this if you want that the bot would post message as a user, otherwise it will send response using the default slackbot
+		slack.MsgOptionIconEmoji(fmt.Sprintf(":%s:", slackmoji)),
 	)
 	if err != nil {
 		fmt.Printf("%s\n", err)
