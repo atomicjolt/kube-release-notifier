@@ -45,7 +45,6 @@ func notifySlack(name string, namespace string, environment string, tag string, 
 	channelID, timestamp, err := api.PostMessage(
 		os.Getenv("SLACK_CHANNEL"),
 		slack.MsgOptionAttachments(attachment),
-		slack.MsgOptionAsUser(true), // Add this if you want that the bot would post message as a user, otherwise it will send response using the default slackbot
 		slack.MsgOptionIconEmoji(fmt.Sprintf(":%s:", slackmoji)),
 	)
 	if err != nil {
