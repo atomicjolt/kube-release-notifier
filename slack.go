@@ -11,8 +11,9 @@ func notifySlack(name string, namespace string, environment string, tag string, 
 	fallback := fmt.Sprintf("Deployed %s %s %s", name, environment, tag)
 	api := slack.New(os.Getenv("SLACK_TOKEN"))
 	attachment := slack.Attachment{
-		Pretext:  fmt.Sprintf("New deployment :%s:", slackmoji),
+		Pretext:  "New deployment",
 		Fallback: fallback,
+		IconEmoji: Sprintf(":%s:", slackmoji),
 		Fields: []slack.AttachmentField{
 			slack.AttachmentField{
 				Title: "App",
