@@ -61,9 +61,20 @@ func (c *DeploymentMonitoringController) updateDeployment(deploy *appsv1.Deploym
 		fmt.Printf("APP UPDATED: %s/%s, Image: %s -> %s\n", deploy.Namespace, name, savedTag, tag)
 		message := containerLabel(image)
 		fmt.Printf("Tag Message: %s\n", message)
-		notifySlack(name, deploy.Namespace, environment, tag, savedTag, slackmoji, message)
-		notifySheet(name, deploy.Namespace, environment, tag, message)
+		// notifySlack(name, deploy.Namespace, environment, tag, savedTag, slackmoji, message)
+		// notifySheet(name, deploy.Namespace, environment, tag, message)
 		//notifyForm(name, deploy.Namespace, environment, tag, message)
+		// notifyGithub(name)
+		e2eEnv := deploy.Annotations["atomicjolt.com/release-notifier-e2e-environment"]
+		e2eLabel := deploy.Annotations["atomicjolt.com/release-notifier-e2e-label"]
+		e2eTags := deploy.Annotations["atomicjolt.com/release-notifier-e2e-tags"]
+
+		if e2eEnv != "" && e2eLabel != "" && e2eTags != "" {
+			fmt.Printf("E2E TESTS >> Environment: %s, Label: %s, Tags: %s\n", e2eEnv, e2eLabel, e2eTags)
+			notifyGithub(e2eEnv, e2eLabel, e2eTags)
+		} else {
+			fmt.Println("No E2E test configuration found for deployment.")
+		}
 	}
 }
 
