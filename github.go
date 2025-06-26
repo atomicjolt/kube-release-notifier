@@ -13,8 +13,7 @@ func notifyGithub(env string, label string, tags string) {
 	githubToken := os.Getenv("GITHUB_TOKEN")
 
 	payload := map[string]any{
-		// TODO switch to main
-		"ref": "rb/search",
+		"ref": "main",
 		"inputs": map[string]string{
 			"canvasDomain": "atomicjolt.instructure.com",
 			"tags":         tags,
