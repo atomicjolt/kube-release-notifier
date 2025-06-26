@@ -8,12 +8,12 @@ import (
 	"os"
 )
 
-func notifyGithub(env string, label string, tags string) {
+func notifyGithub(env, label, tags, ref string) {
 	url := "https://api.github.com/repos/atomicjolt/atomic-e2e-testing/actions/workflows/manual-run.yml/dispatches"
 	githubToken := os.Getenv("GITHUB_TOKEN")
 
 	payload := map[string]any{
-		"ref": "main",
+		"ref": ref,
 		"inputs": map[string]string{
 			"canvasDomain": "atomicjolt.instructure.com",
 			"tags":         tags,
