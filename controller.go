@@ -69,7 +69,7 @@ func (c *DeploymentMonitoringController) updateDeployment(deploy *appsv1.Deploym
 		e2eLabel := deploy.Annotations["atomicjolt.com/release-notifier-e2e-label"]
 		e2eTags := deploy.Annotations["atomicjolt.com/release-notifier-e2e-tags"]
 		e2eRef := deploy.Annotations["atomicjolt.com/release-notifier-e2e-ref"]
-		if e2eRef != "" {
+		if e2eRef == "" {
 			e2eRef = "main"
 		}
 
