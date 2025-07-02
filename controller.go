@@ -64,6 +64,26 @@ func (c *DeploymentMonitoringController) updateDeployment(deploy *appsv1.Deploym
 		notifySlack(name, deploy.Namespace, environment, tag, savedTag, slackmoji, message)
 		notifySheet(name, deploy.Namespace, environment, tag, message)
 		//notifyForm(name, deploy.Namespace, environment, tag, message)
+
+		e2eEnv := deploy.Annotations["atomicjolt.com/release-notifier-e2e-environment"]
+		e2eLabel := deploy.Annotations["atomicjolt.com/release-notifier-e2e-label"]
+		e2eTags := deploy.Annotations["atomicjolt.com/release-notifier-e2e-tags"]
+		e2eRef := deploy.Annotations["atomicjolt.com/release-notifier-e2e-ref"]
+		e2eLmsDomain := deploy.Annotations["atomicjolt.com/release-notifier-e2e-lms-domain"]
+
+		if e2eRef == "" {
+			e2eRef = "main"
+		}
+		if e2eLmsDomain == "" {
+			e2eLmsDomain = "atomicjolt.instructure.com"
+		}
+
+		if e2eEnv != "" && e2eLabel != "" && e2eTags != "" {
+			fmt.Printf("E2E TESTS >> Environment: %s, Label: %s, Tags: %s, Ref: %s\n", e2eEnv, e2eLabel, e2eTags, e2eRef)
+			notifyGithub(e2eEnv, e2eLabel, e2eTags, e2eRef, e2eLmsDomain)
+		} else {
+			fmt.Println("No E2E test configuration found for deployment.")
+		}
 	}
 }
 
