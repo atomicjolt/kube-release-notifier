@@ -7,7 +7,7 @@ import (
 	"github.com/slack-go/slack"
 )
 
-func notifySlack(name string, namespace string, environment string, tag string, oldtag string, slackmoji string, tagMessage string) {
+func notifySlack(name string, namespace string, environment string, tag string, oldtag string, slackmoji string, tagMessage string) string {
 	fallback := fmt.Sprintf("Deployed %s %s %s", name, environment, tag)
 	api := slack.New(os.Getenv("SLACK_TOKEN"))
 	attachment := slack.Attachment{
@@ -49,7 +49,8 @@ func notifySlack(name string, namespace string, environment string, tag string, 
 	)
 	if err != nil {
 		fmt.Printf("%s\n", err)
-		return
+		return ""
 	}
 	fmt.Printf("Message successfully sent to channel %s at %s\n", channelID, timestamp)
+	return timestamp
 }

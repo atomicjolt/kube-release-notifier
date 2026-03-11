@@ -61,7 +61,7 @@ func (c *DeploymentMonitoringController) updateDeployment(deploy *appsv1.Deploym
 		fmt.Printf("APP UPDATED: %s/%s, Image: %s -> %s\n", deploy.Namespace, name, savedTag, tag)
 		message := containerLabel(image)
 		fmt.Printf("Tag Message: %s\n", message)
-		notifySlack(name, deploy.Namespace, environment, tag, savedTag, slackmoji, message)
+		slackTs := notifySlack(name, deploy.Namespace, environment, tag, savedTag, slackmoji, message)
 		notifySheet(name, deploy.Namespace, environment, tag, message)
 		//notifyForm(name, deploy.Namespace, environment, tag, message)
 
@@ -80,7 +80,7 @@ func (c *DeploymentMonitoringController) updateDeployment(deploy *appsv1.Deploym
 
 		if e2eEnv != "" && e2eLabel != "" && e2eTags != "" {
 			fmt.Printf("E2E TESTS >> Environment: %s, Label: %s, Tags: %s, Ref: %s\n", e2eEnv, e2eLabel, e2eTags, e2eRef)
-			notifyGithub(e2eEnv, e2eLabel, e2eTags, e2eRef, e2eLmsDomain)
+			notifyGithub(e2eEnv, e2eLabel, e2eTags, e2eRef, e2eLmsDomain, slackTs)
 		} else {
 			fmt.Println("No E2E test configuration found for deployment.")
 		}
