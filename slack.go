@@ -9,11 +9,15 @@ import (
 
 func notifySlack(name string, namespace string, environment string, tag string, oldtag string, slackmoji string, tagMessage string) string {
 	api := slack.New(os.Getenv("SLACK_TOKEN"))
-	text := fmt.Sprintf("%s %s\n*%s*  (was %s)\n%s", name, environment, tag, oldtag, tagMessage)
+	text := fmt.Sprintf("%s %s\n*%s*  (was %s)", name, environment, tag, oldtag)
+	attachment := slack.Attachment{
+		Text: tagMessage,
+	}
 
 	channelID, timestamp, err := api.PostMessage(
 		os.Getenv("SLACK_CHANNEL"),
 		slack.MsgOptionText(text, false),
+		slack.MsgOptionAttachments(attachment),
 		slack.MsgOptionIconEmoji(fmt.Sprintf(":%s:", slackmoji)),
 	)
 	if err != nil {
