@@ -1,11 +1,11 @@
 module kube-release-notifier
 
-go 1.24.0
+go 1.25
 
 require (
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/google/go-containerregistry v0.20.3
-	github.com/slack-go/slack v0.16.0
+	github.com/slack-go/slack v0.23.1
 	golang.org/x/oauth2 v0.34.0
 	google.golang.org/api v0.224.0
 	k8s.io/api v0.32.2
@@ -40,7 +40,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.5 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
-	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
