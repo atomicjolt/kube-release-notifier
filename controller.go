@@ -26,26 +26,12 @@ func (c *DeploymentMonitoringController) updateDeployment(deploy *appsv1.Deploym
 	savedTag := deploy.Annotations["atomicjolt.com/release-notifier-saved-tag"]
 	fmt.Printf("Checking deployment %s/%s, Image: %s, Saved Tag: %s\n", deploy.Namespace, deploy.Name, tag, savedTag)
 	if tag != savedTag {
-		deploymentsClient := c.clientset.AppsV1().Deployments(deploy.ObjectMeta.Namespace)
-		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			// Retrieve the latest version of Deployment before attempting update
-			// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
-			result, getErr := deploymentsClient.Get(context.TODO(), deploy.Name, metav1.GetOptions{})
-			if getErr != nil {
-				panic(fmt.Errorf("Failed to get latest version of Deployment: %v", getErr))
-			}
-			ann := deploy.ObjectMeta.Annotations
-			if ann == nil {
-				ann = make(map[string]string)
-			}
-			ann["atomicjolt.com/release-notifier-saved-tag"] = tag
-			result.Annotations = ann
-			_, updateErr := deploymentsClient.Update(context.TODO(), result, metav1.UpdateOptions{})
-			return updateErr
-		})
-		if retryErr != nil {
-			panic(fmt.Errorf("Update deployment failed: %v", retryErr))
+		claimed, previousTag := c.claimTag(deploy, tag)
+		if !claimed {
+			fmt.Printf("Tag %s for %s/%s already processed, skipping\n", tag, deploy.Namespace, deploy.Name)
+			return
 		}
+		savedTag = previousTag
 		name := deploy.Annotations["atomicjolt.com/release-notifier-name"]
 		if name == "" {
 			name = deploy.Labels["app.kubernetes.io/name"]
@@ -85,6 +71,42 @@ func (c *DeploymentMonitoringController) updateDeployment(deploy *appsv1.Deploym
 			fmt.Println("No E2E test configuration found for deployment.")
 		}
 	}
+}
+
+// claimTag atomically records tag as the saved tag on the live Deployment.
+// The annotation acts as a lock: the check is made against the latest object
+// from the API server and the update is guarded by resourceVersion, so only
+// one caller (even across replicas or stale queued events) can claim a given
+// tag. Returns whether the tag was claimed and the previously saved tag.
+func (c *DeploymentMonitoringController) claimTag(deploy *appsv1.Deployment, tag string) (bool, string) {
+	deploymentsClient := c.clientset.AppsV1().Deployments(deploy.Namespace)
+	claimed := false
+	previousTag := ""
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Retrieve the latest version of Deployment before attempting update
+		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
+		result, getErr := deploymentsClient.Get(context.TODO(), deploy.Name, metav1.GetOptions{})
+		if getErr != nil {
+			return getErr
+		}
+		previousTag = result.Annotations["atomicjolt.com/release-notifier-saved-tag"]
+		if previousTag == tag {
+			// Another event already claimed this tag
+			claimed = false
+			return nil
+		}
+		if result.Annotations == nil {
+			result.Annotations = make(map[string]string)
+		}
+		result.Annotations["atomicjolt.com/release-notifier-saved-tag"] = tag
+		_, updateErr := deploymentsClient.Update(context.TODO(), result, metav1.UpdateOptions{})
+		claimed = updateErr == nil
+		return updateErr
+	})
+	if retryErr != nil {
+		panic(fmt.Errorf("Update deployment failed: %v", retryErr))
+	}
+	return claimed, previousTag
 }
 
 func (c *DeploymentMonitoringController) deploymentAdd(obj interface{}) {

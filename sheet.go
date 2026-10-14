@@ -27,14 +27,14 @@ func notifySheet(name string, namespace string, environment string, tag string, 
 
 	cfg, err := google.JWTConfigFromJSON([]byte(tokenStr), sheets.SpreadsheetsScope)
 	if err != nil {
-		fmt.Errorf("unable to parse client secret file to config: %w", err)
+		log.Printf("Unable to parse client secret file to config: %v", err)
 		return
 	}
 	client := cfg.Client(context.Background())
 
 	srv, err := sheets.NewService(context.Background(), option.WithHTTPClient(client))
 	if err != nil {
-		fmt.Errorf("unable to retrieve Sheets client: %w", err)
+		log.Printf("Unable to retrieve Sheets client: %v", err)
 		return
 	}
 
