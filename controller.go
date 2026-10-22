@@ -66,9 +66,29 @@ func (c *DeploymentMonitoringController) updateDeployment(deploy *appsv1.Deploym
 
 		if e2eEnv != "" && e2eLabel != "" && e2eTags != "" {
 			fmt.Printf("E2E TESTS >> Environment: %s, Label: %s, Tags: %s, Ref: %s\n", e2eEnv, e2eLabel, e2eTags, e2eRef)
-			notifyGithub(e2eEnv, e2eLabel, e2eTags, e2eRef, e2eLmsDomain, slackTs)
+			if err := notifyGithub(e2eEnv, e2eLabel, e2eTags, e2eRef, e2eLmsDomain, slackTs); err != nil {
+				fmt.Println("E2E TESTS >>", err)
+				replySlack(slackTs, fmt.Sprintf(":warning: Couldn't start the E2E tests: %s", err))
+			}
 		} else {
 			fmt.Println("No E2E test configuration found for deployment.")
+		}
+
+		issuesSourceRepo := deploy.Annotations["atomicjolt.com/release-notifier-issues-repo"]
+		issuesProjects := deploy.Annotations["atomicjolt.com/release-notifier-issues-projects"]
+		issuesStatus := deploy.Annotations["atomicjolt.com/release-notifier-issues-status"]
+		issuesEnvironment := deploy.Annotations["atomicjolt.com/release-notifier-issues-environment"]
+
+		if issuesSourceRepo != "" && issuesProjects != "" && issuesStatus != "" {
+			if savedTag == "" {
+				fmt.Println("ISSUE STATUS >> No previous tag to compare against, skipping")
+			} else {
+				fmt.Printf("ISSUE STATUS >> Repo: %s, %s...%s, Projects: %s, Status: %s, Environment: %s\n", issuesSourceRepo, savedTag, tag, issuesProjects, issuesStatus, issuesEnvironment)
+				if err := markDeployed(issuesSourceRepo, issuesProjects, issuesStatus, issuesEnvironment, tag, savedTag); err != nil {
+					fmt.Println("ISSUE STATUS >>", err)
+					replySlack(slackTs, fmt.Sprintf(":warning: Couldn't start the %s issue status update: %s", issuesStatus, err))
+				}
+			}
 		}
 	}
 }

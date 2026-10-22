@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -15,9 +16,13 @@ import (
 )
 
 const (
-	targetOwner    = "atomicjolt"
-	targetRepo     = "atomic-e2e-testing"
-	targetWorkflow = "manual-run.yml"
+	targetOwner = "atomicjolt"
+
+	e2eRepo     = "atomic-e2e-testing"
+	e2eWorkflow = "manual-run.yml"
+
+	issuesRepo     = "aj-app-releases"
+	issuesWorkflow = "mark-deployed.yml"
 )
 
 // The authenticated client is built once and reused. ghinstallation's
@@ -28,36 +33,55 @@ var (
 	cachedClient *http.Client
 )
 
-func notifyGithub(env, label, tags, ref, lmsDomain, slackThreadTs string) {
+// notifyGithub runs the E2E tests for a deploy.
+func notifyGithub(env, label, tags, ref, lmsDomain, slackThreadTs string) error {
+	return dispatchWorkflow(e2eRepo, e2eWorkflow, ref, map[string]string{
+		"canvasDomain":  lmsDomain,
+		"tags":          tags,
+		"appEnv":        env,
+		"label":         label,
+		"slackThreadTs": slackThreadTs,
+	})
+}
+
+// markDeployed moves the issues closed by PRs in previousTag...tag of
+// sourceRepo to status on the given GitHub Projects (comma-separated
+// numbers), and records tag and environment (optional) on them, via the
+// mark-deployed workflow in aj-app-releases.
+func markDeployed(sourceRepo, projects, status, environment, tag, previousTag string) error {
+	return dispatchWorkflow(issuesRepo, issuesWorkflow, "main", map[string]string{
+		"source_repo":     sourceRepo,
+		"image_tag":       tag,
+		"previous_tag":    previousTag,
+		"project_numbers": projects,
+		"status_name":     status,
+		"environment":     environment,
+	})
+}
+
+// dispatchWorkflow triggers a workflow_dispatch run of workflow in
+// targetOwner/repo on ref.
+func dispatchWorkflow(repo, workflow, ref string, inputs map[string]string) error {
 	client, err := githubClient()
 	if err != nil {
-		fmt.Println("Failed to build GitHub client:", err)
-		return
+		return fmt.Errorf("failed to build GitHub client: %w", err)
 	}
 
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/workflows/%s/dispatches", targetOwner, targetRepo, targetWorkflow)
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/actions/workflows/%s/dispatches", targetOwner, repo, workflow)
 
 	payload := map[string]any{
-		"ref": ref,
-		"inputs": map[string]string{
-			"canvasDomain":  lmsDomain,
-			"tags":          tags,
-			"appEnv":        env,
-			"label":         label,
-			"slackThreadTs": slackThreadTs,
-		},
+		"ref":    ref,
+		"inputs": inputs,
 	}
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		fmt.Println("Failed to marshal JSON:", err)
-		return
+		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		fmt.Println("Failed to create request:", err)
-		return
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	// The installation transport sets Authorization for us.
@@ -66,12 +90,16 @@ func notifyGithub(env, label, tags, ref, lmsDomain, slackThreadTs string) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Request failed:", err)
-		return
+		return fmt.Errorf("dispatch of %s/%s failed: %w", repo, workflow, err)
 	}
 	defer resp.Body.Close()
 
-	fmt.Printf("Response status: %s\n", resp.Status)
+	fmt.Printf("Dispatch %s/%s: %s\n", repo, workflow, resp.Status)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("dispatch of %s/%s failed: %s %s", repo, workflow, resp.Status, bytes.TrimSpace(body))
+	}
+	return nil
 }
 
 // githubClient returns an http.Client that authenticates as the GitHub App's
@@ -141,8 +169,9 @@ func githubAppPrivateKey() ([]byte, error) {
 	return key, nil
 }
 
-// githubInstallationID looks up the installation of this app on the target
-// repo, so the installation id does not have to be configured by hand.
+// githubInstallationID looks up the installation of this app on the E2E
+// repo, so the installation id does not have to be configured by hand. The
+// same installation must also cover aj-app-releases.
 func githubInstallationID(appTransport *ghinstallation.AppsTransport) (int64, error) {
 	if value := os.Getenv("GITHUB_APP_INSTALLATION_ID"); value != "" {
 		installationID, err := strconv.ParseInt(value, 10, 64)
@@ -157,9 +186,9 @@ func githubInstallationID(appTransport *ghinstallation.AppsTransport) (int64, er
 		return 0, fmt.Errorf("unable to build GitHub client: %w", err)
 	}
 
-	installation, _, err := client.Apps.GetRepositoryInstallation(context.Background(), targetOwner, targetRepo)
+	installation, _, err := client.Apps.GetRepositoryInstallation(context.Background(), targetOwner, e2eRepo)
 	if err != nil {
-		return 0, fmt.Errorf("unable to find app installation on %s/%s: %w", targetOwner, targetRepo, err)
+		return 0, fmt.Errorf("unable to find app installation on %s/%s: %w", targetOwner, e2eRepo, err)
 	}
 	return installation.GetID(), nil
 }
