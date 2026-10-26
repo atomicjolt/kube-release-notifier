@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -80,5 +81,48 @@ func TestGithubInstallationIDFromEnv(t *testing.T) {
 	t.Setenv("GITHUB_APP_INSTALLATION_ID", "not-a-number")
 	if _, err := githubInstallationID(nil); err == nil {
 		t.Fatal("expected an error for a non-numeric GITHUB_APP_INSTALLATION_ID")
+	}
+}
+
+func TestE2EDispatch(t *testing.T) {
+	common := map[string]string{
+		"canvasDomain":  "atomicjolt.instructure.com",
+		"appEnv":        "Dev",
+		"label":         "Atomic Assessments",
+		"slackThreadTs": "1700000000.000100",
+	}
+	with := func(key, value string) map[string]string {
+		inputs := map[string]string{key: value}
+		for k, v := range common {
+			inputs[k] = v
+		}
+		return inputs
+	}
+
+	tests := []struct {
+		runner       string
+		tags         string
+		wantWorkflow string
+		wantInputs   map[string]string
+	}{
+		{"", "AtomicAssessments --Broken", "manual-run.yml", with("tags", "AtomicAssessments --Broken")},
+		{"cypress", "AtomicAssessments --Broken", "manual-run.yml", with("tags", "AtomicAssessments --Broken")},
+		{"playwright", "@AtomicAssessments", "manual-run-playwright.yml", with("grep", "@AtomicAssessments")},
+	}
+	for _, tt := range tests {
+		workflow, inputs, err := e2eDispatch(tt.runner, "Dev", "Atomic Assessments", tt.tags, "atomicjolt.instructure.com", "1700000000.000100")
+		if err != nil {
+			t.Fatalf("runner %q: %v", tt.runner, err)
+		}
+		if workflow != tt.wantWorkflow {
+			t.Errorf("runner %q: got workflow %s, want %s", tt.runner, workflow, tt.wantWorkflow)
+		}
+		if !reflect.DeepEqual(inputs, tt.wantInputs) {
+			t.Errorf("runner %q: got inputs %v, want %v", tt.runner, inputs, tt.wantInputs)
+		}
+	}
+
+	if _, _, err := e2eDispatch("selenium", "Dev", "Atomic Assessments", "x", "atomicjolt.instructure.com", ""); err == nil {
+		t.Fatal("expected an error for an unknown runner")
 	}
 }
