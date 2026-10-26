@@ -17,6 +17,29 @@ repo.
 The notifier exchanges the key for an installation access token on demand and
 reuses it until shortly before it expires.
 
+## E2E tests
+
+When a Deployment with these annotations rolls out a new tag, the notifier
+dispatches a workflow in `atomicjolt/atomic-e2e-testing` and threads its
+results under the deploy's Slack message. Set the first three to enable it:
+
+| Annotation | Example |
+| --- | --- |
+| `atomicjolt.com/release-notifier-e2e-environment` | `Dev` |
+| `atomicjolt.com/release-notifier-e2e-label` | `Atomic Assessments` |
+| `atomicjolt.com/release-notifier-e2e-tags` | `AtomicAssessments --Broken` |
+| `atomicjolt.com/release-notifier-e2e-runner` (optional) | `playwright` |
+| `atomicjolt.com/release-notifier-e2e-lms-domain` (optional) | `atomicjolt.instructure.com` (default) |
+| `atomicjolt.com/release-notifier-e2e-ref` (optional) | `main` (default) |
+
+The runner picks the workflow and what the tags mean:
+
+- `cypress` (default) runs `manual-run.yml`. The tags are a Cypress grep tag
+  expression, e.g. `AtomicAssessments --Broken`.
+- `playwright` runs `manual-run-playwright.yml`. The tags are a Playwright
+  `--grep` regex, e.g. `@AtomicAssessments`; `@Broken` and `@WritesConfig`
+  tests are excluded by the workflow's `grepInvert` default.
+
 ## Issue statuses
 
 When a Deployment with these annotations rolls out a new tag, the notifier
