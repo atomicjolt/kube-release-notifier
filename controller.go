@@ -57,6 +57,7 @@ func (c *DeploymentMonitoringController) updateDeployment(deploy *appsv1.Deploym
 		e2eRef := deploy.Annotations["atomicjolt.com/release-notifier-e2e-ref"]
 		e2eLmsDomain := deploy.Annotations["atomicjolt.com/release-notifier-e2e-lms-domain"]
 		e2eRunner := deploy.Annotations["atomicjolt.com/release-notifier-e2e-runner"]
+		e2eProject := deploy.Annotations["atomicjolt.com/release-notifier-e2e-project"]
 
 		if e2eRef == "" {
 			e2eRef = "main"
@@ -66,8 +67,8 @@ func (c *DeploymentMonitoringController) updateDeployment(deploy *appsv1.Deploym
 		}
 
 		if e2eEnv != "" && e2eLabel != "" && e2eTags != "" {
-			fmt.Printf("E2E TESTS >> Runner: %s, Environment: %s, Label: %s, Tags: %s, Ref: %s\n", e2eRunner, e2eEnv, e2eLabel, e2eTags, e2eRef)
-			if err := notifyGithub(e2eRunner, e2eEnv, e2eLabel, e2eTags, e2eRef, e2eLmsDomain, slackTs); err != nil {
+			fmt.Printf("E2E TESTS >> Runner: %s, Project: %s, Environment: %s, Label: %s, Tags: %s, Ref: %s\n", e2eRunner, e2eProject, e2eEnv, e2eLabel, e2eTags, e2eRef)
+			if err := notifyGithub(e2eRunner, e2eProject, e2eEnv, e2eLabel, e2eTags, e2eRef, e2eLmsDomain, slackTs); err != nil {
 				fmt.Println("E2E TESTS >>", err)
 				replySlack(slackTs, fmt.Sprintf(":warning: Couldn't start the E2E tests: %s", err))
 			}
