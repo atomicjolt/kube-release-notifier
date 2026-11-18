@@ -29,6 +29,7 @@ results under the deploy's Slack message. Set the first three to enable it:
 | `atomicjolt.com/release-notifier-e2e-label` | `Atomic Assessments` |
 | `atomicjolt.com/release-notifier-e2e-tags` | `AtomicAssessments --Broken` |
 | `atomicjolt.com/release-notifier-e2e-runner` (optional) | `playwright` |
+| `atomicjolt.com/release-notifier-e2e-project` (optional, Playwright only) | `socialize` |
 | `atomicjolt.com/release-notifier-e2e-lms-domain` (optional) | `atomicjolt.instructure.com` (default) |
 | `atomicjolt.com/release-notifier-e2e-ref` (optional) | `main` (default) |
 
@@ -38,7 +39,10 @@ The runner picks the workflow and what the tags mean:
   expression, e.g. `AtomicAssessments --Broken`.
 - `playwright` runs `manual-run-playwright.yml`. The tags are a Playwright
   `--grep` regex, e.g. `@AtomicAssessments`; `@Broken` and `@WritesConfig`
-  tests are excluded by the workflow's `grepInvert` default.
+  tests are excluded by the workflow's `grepInvert` default. The project
+  annotation picks the workflow's `project` input (default
+  `atomic-assessments`); any product other than Atomic Assessments needs it,
+  or the run matches no tests. Setting it with the Cypress runner is an error.
 
 ## Issue statuses
 

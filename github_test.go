@@ -101,16 +101,22 @@ func TestE2EDispatch(t *testing.T) {
 
 	tests := []struct {
 		runner       string
+		project      string
 		tags         string
 		wantWorkflow string
 		wantInputs   map[string]string
 	}{
-		{"", "AtomicAssessments --Broken", "manual-run.yml", with("tags", "AtomicAssessments --Broken")},
-		{"cypress", "AtomicAssessments --Broken", "manual-run.yml", with("tags", "AtomicAssessments --Broken")},
-		{"playwright", "@AtomicAssessments", "manual-run-playwright.yml", with("grep", "@AtomicAssessments")},
+		{"", "", "AtomicAssessments --Broken", "manual-run.yml", with("tags", "AtomicAssessments --Broken")},
+		{"cypress", "", "AtomicAssessments --Broken", "manual-run.yml", with("tags", "AtomicAssessments --Broken")},
+		{"playwright", "", "@AtomicAssessments", "manual-run-playwright.yml", with("grep", "@AtomicAssessments")},
+		{"playwright", "socialize", "@Socialize", "manual-run-playwright.yml", func() map[string]string {
+			inputs := with("grep", "@Socialize")
+			inputs["project"] = "socialize"
+			return inputs
+		}()},
 	}
 	for _, tt := range tests {
-		workflow, inputs, err := e2eDispatch(tt.runner, "Dev", "Atomic Assessments", tt.tags, "atomicjolt.instructure.com", "1700000000.000100")
+		workflow, inputs, err := e2eDispatch(tt.runner, tt.project, "Dev", "Atomic Assessments", tt.tags, "atomicjolt.instructure.com", "1700000000.000100")
 		if err != nil {
 			t.Fatalf("runner %q: %v", tt.runner, err)
 		}
@@ -122,7 +128,11 @@ func TestE2EDispatch(t *testing.T) {
 		}
 	}
 
-	if _, _, err := e2eDispatch("selenium", "Dev", "Atomic Assessments", "x", "atomicjolt.instructure.com", ""); err == nil {
+	if _, _, err := e2eDispatch("selenium", "", "Dev", "Atomic Assessments", "x", "atomicjolt.instructure.com", ""); err == nil {
 		t.Fatal("expected an error for an unknown runner")
+	}
+
+	if _, _, err := e2eDispatch("cypress", "socialize", "Dev", "Socialize", "x", "atomicjolt.instructure.com", ""); err == nil {
+		t.Fatal("expected an error for a project on the cypress runner")
 	}
 }

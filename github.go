@@ -35,9 +35,10 @@ var (
 )
 
 // notifyGithub runs the E2E tests for a deploy with the given runner
-// ("cypress" when empty, or "playwright").
-func notifyGithub(runner, env, label, tags, ref, lmsDomain, slackThreadTs string) error {
-	workflow, inputs, err := e2eDispatch(runner, env, label, tags, lmsDomain, slackThreadTs)
+// ("cypress" when empty, or "playwright"). project is the Playwright project to
+// run; empty leaves it to the workflow's default.
+func notifyGithub(runner, project, env, label, tags, ref, lmsDomain, slackThreadTs string) error {
+	workflow, inputs, err := e2eDispatch(runner, project, env, label, tags, lmsDomain, slackThreadTs)
 	if err != nil {
 		return err
 	}
@@ -47,7 +48,7 @@ func notifyGithub(runner, env, label, tags, ref, lmsDomain, slackThreadTs string
 // e2eDispatch picks the workflow for runner and builds its inputs. The two
 // workflows take the tag filter under different names, and workflow_dispatch
 // rejects inputs a workflow does not declare, so each gets only its own.
-func e2eDispatch(runner, env, label, tags, lmsDomain, slackThreadTs string) (string, map[string]string, error) {
+func e2eDispatch(runner, project, env, label, tags, lmsDomain, slackThreadTs string) (string, map[string]string, error) {
 	inputs := map[string]string{
 		"canvasDomain":  lmsDomain,
 		"appEnv":        env,
@@ -56,11 +57,21 @@ func e2eDispatch(runner, env, label, tags, lmsDomain, slackThreadTs string) (str
 	}
 	switch runner {
 	case "", "cypress":
+		// The Cypress workflow has no project input; refusing beats silently
+		// running a different selection than the annotations describe.
+		if project != "" {
+			return "", nil, fmt.Errorf("e2e project %q needs the playwright runner", project)
+		}
 		inputs["tags"] = tags
 		return e2eCypressWorkflow, inputs, nil
 	case "playwright":
 		// grepInvert and workers are left to the workflow's defaults.
 		inputs["grep"] = tags
+		// Without it the workflow runs its default project (atomic-assessments),
+		// which matches nothing for other products.
+		if project != "" {
+			inputs["project"] = project
+		}
 		return e2ePlaywrightWorkflow, inputs, nil
 	default:
 		return "", nil, fmt.Errorf("unknown e2e runner %q", runner)
